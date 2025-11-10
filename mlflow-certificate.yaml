@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mlflow.test.drai.auckland.ac.nz
+  namespace: mlflow
+spec:
+  commonName: mlflow.test.drai.auckland.ac.nz
+  dnsNames:
+    - mlflow.test.drai.auckland.ac.nz
+  issuerRef:
+    name: zerossl-issuer
+    kind: ClusterIssuer
+  secretName: mlflow-test-tls

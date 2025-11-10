@@ -1,0 +1,106 @@
+# -----------------------------
+# Namespace
+# -----------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mlflow
+
+---
+# -----------------------------
+# PersistentVolumeClaim (Single PVC)
+# -----------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-storage-pvc
+  namespace: mlflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+  storageClassName: ceph-ssd
+  volumeMode: Filesystem
+
+---
+# -----------------------------
+# MLflow Deployment
+# -----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: cdjs/mlflow-oidc:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: OIDC_DISCOVERY_URL
+              value: https://keycloak.test.drai.auckland.ac.nz/realms/drai/.well-known/openid-configuration
+            - name: OIDC_CLIENT_ID
+              value: mlflow-test
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secret
+                  key: MLFLOW_OIDC_CLIENT_SECRET
+            - name: OIDC_PROVIDER_DISPLAY_NAME
+              value: Login with DRAI Keycloak
+            - name: OIDC_REDIRECT_URI
+              value: https://mlflow.test.drai.auckland.ac.nz/callback
+            - name: OIDC_SCOPE
+              value: openid email profile
+            - name: LOG_LEVEL
+              value: INFO
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          volumeMounts:
+            - name: mlflow-storage
+              mountPath: /mlflow
+      volumes:
+        - name: mlflow-storage
+          persistentVolumeClaim:
+            claimName: mlflow-storage-pvc
+
+---
+# -----------------------------
+# ClusterIP Service
+# -----------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: mlflow
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP
