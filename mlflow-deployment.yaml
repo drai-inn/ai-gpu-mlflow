@@ -58,6 +58,8 @@ spec:
               value: openid email profile
             - name: LOG_LEVEL
               value: INFO
+            - name: DEFAULT_MLFLOW_PERMISSION
+              value: NO_PERMISSIONS
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
