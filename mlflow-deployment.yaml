@@ -1,13 +1,4 @@
 # -----------------------------
-# Namespace
-# -----------------------------
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: mlflow
-
----
-# -----------------------------
 # PersistentVolumeClaim (Single PVC)
 # -----------------------------
 apiVersion: v1

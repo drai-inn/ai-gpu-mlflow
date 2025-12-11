@@ -1,6 +1,12 @@
 # MLflow
 
-Create secret first:
+Create the namespace first:
+
+```
+kubectl apply -f mlflow-namespace.yaml
+```
+
+Create the secret:
 
 ```
 cp mlflow-secret.yaml.example mlflow-secret.yaml
