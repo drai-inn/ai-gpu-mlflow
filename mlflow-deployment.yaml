@@ -38,6 +38,21 @@ spec:
         - name: mlflow
           image: cdjs/mlflow-oidc:dev
           imagePullPolicy: Always
+          args:
+            - "mlflow"
+            - "server"
+            - "--app-name"
+            - "oidc-auth"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "5000"
+            - "--backend-store-uri"
+            - "sqlite:////mlflow/db/mlflow.db"
+            - "--artifacts-destination"
+            - "/mlflow/artifacts"
+            - "--serve-artifacts"
+            - "--disable-security-middleware"
           ports:
             - containerPort: 5000
           env:
