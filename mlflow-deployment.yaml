@@ -47,8 +47,6 @@ spec:
             - "0.0.0.0"
             - "--port"
             - "5000"
-            - "--backend-store-uri"
-            - "sqlite:////mlflow/db/mlflow.db"
             - "--artifacts-destination"
             - "/mlflow/artifacts"
             - "--serve-artifacts"
@@ -75,6 +73,13 @@ spec:
               value: INFO
             - name: DEFAULT_MLFLOW_PERMISSION
               value: NO_PERMISSIONS
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-postgres-secret
+                  key: password
+            - name: MLFLOW_BACKEND_STORE_URI
+              value: "postgresql+psycopg2://mlflow:$(DB_PASSWORD)@mlflow-postgres-postgresql.mlflow.svc.cluster.local:5432/mlflow"
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000

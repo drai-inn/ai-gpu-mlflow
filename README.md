@@ -6,6 +6,8 @@ Create the namespace first:
 kubectl apply -f mlflow-namespace.yaml
 ```
 
+Install postgres - go to postgres sub directory and follow instructions there.
+
 Create the secret:
 
 ```
