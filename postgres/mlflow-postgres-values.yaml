@@ -12,6 +12,10 @@ primary:
     enabled: true
     whenScaled: Retain
     whenDeleted: Retain
+  initdb:
+    scripts:
+      00_init_auth_database.sql: |
+        CREATE DATABASE mlflow_auth OWNER mlflow;
 image:
   registry: docker.io
   repository: bitnamilegacy/postgresql

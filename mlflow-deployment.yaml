@@ -80,6 +80,8 @@ spec:
                   key: password
             - name: MLFLOW_BACKEND_STORE_URI
               value: "postgresql+psycopg2://mlflow:$(DB_PASSWORD)@mlflow-postgres-postgresql.mlflow.svc.cluster.local:5432/mlflow"
+            - name: OIDC_USERS_DB_URI
+              value: "postgresql+psycopg2://mlflow:$(DB_PASSWORD)@mlflow-postgres-postgresql.mlflow.svc.cluster.local:5432/mlflow_auth"
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
