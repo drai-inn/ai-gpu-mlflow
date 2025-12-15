@@ -1,22 +1,4 @@
 # -----------------------------
-# PersistentVolumeClaim (Single PVC)
-# -----------------------------
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mlflow-storage-pvc
-  namespace: mlflow
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 30Gi
-  storageClassName: ceph-ssd
-  volumeMode: Filesystem
-
----
-# -----------------------------
 # MLflow Deployment
 # -----------------------------
 apiVersion: apps/v1
