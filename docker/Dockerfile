@@ -13,8 +13,8 @@ RUN groupadd --gid 1000 mlgroup \
 
 WORKDIR /mlflow
 
-ARG MLFLOW_VERSION=3.6.0
-ARG MLFLOW_OIDC_VERSION=5.6.1
+ARG MLFLOW_VERSION=3.7.0
+ARG MLFLOW_OIDC_VERSION=5.7.0
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install \
@@ -24,15 +24,10 @@ RUN python -m pip install --upgrade pip setuptools wheel \
     psycopg2-binary \
     && rm -rf /root/.cache/pip
 
-# small entrypoint script (ensures directories exist)
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
-
 # drop privileges - run as non-root user from here on
 USER mluser
 
 EXPOSE 5000
-ENTRYPOINT [ "/app/docker-entrypoint.sh" ]
 CMD ["mlflow", "server", \
     "--app-name", "oidc-auth", \
     "--host", "0.0.0.0", \

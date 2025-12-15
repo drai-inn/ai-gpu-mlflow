@@ -48,7 +48,7 @@ spec:
             - "--port"
             - "5000"
             - "--artifacts-destination"
-            - "/mlflow/artifacts"
+            - "s3://drai-mlflow-test"
             - "--serve-artifacts"
             - "--disable-security-middleware"
           ports:
@@ -80,6 +80,26 @@ spec:
                   key: password
             - name: MLFLOW_BACKEND_STORE_URI
               value: "postgresql+psycopg2://mlflow:$(DB_PASSWORD)@mlflow-postgres-postgresql.mlflow.svc.cluster.local:5432/mlflow"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secret
+                  key: MLFLOW_AWS_ACCESS_KEY
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secret
+                  key: MLFLOW_AWS_SECRET_KEY
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: https://object.akl-1.cloud.nesi.org.nz
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_S3_ADDRESSING_STYLE
+              value: path
+            - name: AWS_REQUEST_CHECKSUM_CALCULATION
+              value: when_required
+            - name: AWS_RESPONSE_CHECKSUM_CALCULATION
+              value: when_required
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
@@ -92,13 +112,6 @@ spec:
             limits:
               cpu: "2"
               memory: "2Gi"
-          volumeMounts:
-            - name: mlflow-storage
-              mountPath: /mlflow
-      volumes:
-        - name: mlflow-storage
-          persistentVolumeClaim:
-            claimName: mlflow-storage-pvc
 
 ---
 # -----------------------------
