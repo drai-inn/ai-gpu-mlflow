@@ -18,21 +18,20 @@ spec:
     spec:
       containers:
         - name: mlflow
-          image: cdjs/mlflow-oidc:dev
+          image: cdjs/mlflow-oidc:v0.3.0
           imagePullPolicy: Always
+          command: ["/bin/bash", "-c"]
           args:
-            - "mlflow"
-            - "server"
-            - "--app-name"
-            - "oidc-auth"
-            - "--host"
-            - "0.0.0.0"
-            - "--port"
-            - "5000"
-            - "--artifacts-destination"
-            - "s3://drai-mlflow-test"
-            - "--serve-artifacts"
-            - "--disable-security-middleware"
+            - |
+              set -x
+
+              echo "Upgrading mlflow database..."
+              mlflow db upgrade ${MLFLOW_BACKEND_STORE_URI}
+
+              echo "Starting mlflow..."
+              mlflow server --app-name oidc-auth --host 0.0.0.0 --port 5000 \
+                  --artifacts-destination s3://drai-mlflow-test \
+                  --serve-artifacts
           ports:
             - containerPort: 5000
           env:
@@ -84,6 +83,20 @@ spec:
               value: when_required
             - name: AWS_RESPONSE_CHECKSUM_CALCULATION
               value: when_required
+            - name: MLFLOW_CRYPTO_KEK_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secret
+                  key: MLFLOW_CRYPTO_KEK_PASSPHRASE
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secret
+                  key: MLFLOW_OIDC_SECRET_KEY
+            - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: mlflow.test.drai.auckland.ac.nz
+            - name: MLFLOW_SERVER_CORS_ALLOWED_ORIGINS
+              value: https://mlflow.test.drai.auckland.ac.nz
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000

@@ -13,13 +13,13 @@ RUN groupadd --gid 1000 mlgroup \
 
 WORKDIR /mlflow
 
-ARG MLFLOW_VERSION=3.7.0
-ARG MLFLOW_OIDC_VERSION=5.7.0
+ARG MLFLOW_VERSION=3.10.0
+ARG MLFLOW_OIDC_VERSION=6.7.1
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install \
     mlflow-oidc-auth[full]==${MLFLOW_OIDC_VERSION} \
-    mlflow==${MLFLOW_VERSION} \
+    mlflow[genai]==${MLFLOW_VERSION} \
     boto3 \
     psycopg2-binary \
     && rm -rf /root/.cache/pip
