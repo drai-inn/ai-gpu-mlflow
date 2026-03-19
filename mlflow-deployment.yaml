@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: mlflow
-          image: cdjs/mlflow-oidc:v0.3.0
+          image: cdjs/mlflow-oidc:v0.3.1
           imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
           args:
