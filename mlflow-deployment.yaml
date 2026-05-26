@@ -50,6 +50,16 @@ spec:
               value: https://mlflow.test.drai.auckland.ac.nz/callback
             - name: OIDC_SCOPE
               value: openid email profile
+            # Group allowlists below must use Keycloak full group paths
+            # (leading slash). The Group Membership mapper on the mlflow-test
+            # client has Full group path = ON; without the slash these values
+            # would not match and login would fail.
+            - name: OIDC_GROUPS_ATTRIBUTE
+              value: groups
+            - name: OIDC_GROUP_NAME
+              value: "/mlflow"
+            - name: OIDC_ADMIN_GROUP_NAME
+              value: "/mlflow-admin"
             - name: OIDC_USE_REFRESH_TOKEN
               value: "true"
             - name: OIDC_SESSION_EXPIRY_LEEWAY_SECONDS
