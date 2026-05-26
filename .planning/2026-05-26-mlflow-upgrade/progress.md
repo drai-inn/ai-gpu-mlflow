@@ -32,6 +32,29 @@
 - Diffed `config.py` between 6.7.1 and 7.3.1: no env vars removed or renamed. Many added (workspace, cache, session cookie, DB pool, re-auth tuning), all with internal defaults that preserve pre-upgrade behaviour.
 - Read PR #249 in detail. Default v7.2.0 behaviour with a 5-min access token would bounce users every 5 min; mitigation is `OIDC_USE_REFRESH_TOKEN=true` for silent refresh.
 
+### Update 2026-05-26 (Phase 2 execution and completion)
+- Confirmed kube context `uoa-drai-gpu-test-admin@uoa-drai-gpu-test`. Pods in `mlflow` ns: `mlflow-6bcdd5bf89-vldbh` (Running 1/1, 7 restarts in 14d) and `mlflow-postgres-postgresql-0`.
+- DB creds: `DB_PASSWORD`/`POSTGRES_PASSWORD` both bound to secret `mlflow-postgres-secret` key `password`.
+- Created `backups/` (added to `.gitignore`).
+- `pg_dump` executed inside the postgres pod, streamed via `kubectl exec` to local files:
+  - `backups/mlflow-tracking-20260526T010019Z.sql` (855K, ends with `-- PostgreSQL database dump complete`).
+  - `backups/mlflow-auth-20260526T010049Z.sql` (61K, ends with `-- PostgreSQL database dump complete`).
+- Note: modern pg_dump (>=17) brackets the dump with `\restrict TOKEN` / `\unrestrict TOKEN` (psql restore safety). Both files balanced.
+- Rollback anchors recorded: deployment revision **8**, image `cdjs/mlflow-oidc:v0.3.1`, running container imageID digest `sha256:abbe2311317964530bc3221d795abe677ff356c0052ffd7b3ebeb7f4dd3f2f93`.
+- Old image manifest still resolvable on Docker Hub (`docker manifest inspect cdjs/mlflow-oidc:v0.3.1` returned a valid v2 manifest).
+- Phase 2 marked complete. Current phase advanced to 3.
+
+### Update 2026-05-26 (Phase 3 execution and completion)
+- Created branch `upgrade-mlflow-3.12.0` from local `main` (which already had the unpushed workflow + plan commits).
+- Bumped `docker/Dockerfile` to `MLFLOW_VERSION=3.12.0` / `MLFLOW_OIDC_VERSION=7.3.1`. Single commit `07fe896`.
+- Pushed branch. CI run 26426658814 succeeded in 1m44s. Image `:upgrade-mlflow-3.12.0@sha256:84f0e405004dca08602040f59f11e998602412f34a756b9957061531e471fd56`.
+- Per user decision: fast-forwarded `main` to `07fe896` and pushed directly (no PR). CI run 26426817335 succeeded in 2m1s. Image `:main`.
+- Tagged `v0.4.0` annotated on `07fe896`, pushed. CI run 26427038739 succeeded in 1m53s. Image `:v0.4.0` and `:latest` → digest `sha256:1c2e5a0a68213faf07f142f454b5bc189f3c1b55acd1c72041b63f3e8af22a5b`.
+- Observation: workflow's default `docker/metadata-action` config only produces `:<branch>`, `:<tag>`, and `:latest`. No `:sha-<short>`, no `:0.4.0`/`:0.4` short semver forms. Not blocking, just noting.
+- GHCR package confirmed already public. Anonymous `docker pull` succeeded with matching digest.
+- Smoke test: `mlflow server --help` works. `importlib.metadata` shows `mlflow==3.12.0` and `mlflow-oidc-auth==7.3.1`. `mlflow_oidc_auth.__version__` reads `7.0.0.dev0` due to an upstream cosmetic bug; the wheel install version is the source of truth.
+- Phase 3 marked complete. Current Phase advanced to 5 (Phase 4 was already skipped).
+
 ### Update 2026-05-26 (Phase 1 close-out)
 User decisions recorded:
 - Keycloak access-token lifespan = 5 min. Decision: enable `OIDC_USE_REFRESH_TOKEN=true` in deployment (added to Phase 5 checklist).

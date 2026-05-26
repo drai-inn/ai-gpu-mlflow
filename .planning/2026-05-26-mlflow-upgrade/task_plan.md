@@ -4,7 +4,7 @@
 Upgrade the deployed MLflow stack from `mlflow 3.10.1` / `mlflow-oidc-auth 6.7.1` to `mlflow 3.12.0` / `mlflow-oidc-auth 7.3.1`, rebuild and push a new container image, roll out to the `mlflow` namespace with both alembic migrations applied cleanly, and verify auth + tracking still work.
 
 ## Current Phase
-Phase 2 (Phase 1 complete)
+Phase 5 (Phases 1, 2, 3 complete; Phase 4 skipped)
 
 ## Scope and Non-Goals
 - IN SCOPE: Dockerfile pins, image rebuild, deployment manifest update, DB backups, rollout, smoke tests.
@@ -30,21 +30,21 @@ Phase 2 (Phase 1 complete)
 - **Status:** complete
 
 ### Phase 2: Backups and rollback anchors
-- [ ] `pg_dump` the `mlflow` tracking DB to a timestamped file outside the cluster.
-- [ ] `pg_dump` the `mlflow_auth` plugin DB to a timestamped file outside the cluster.
-- [ ] Confirm the old image `cdjs/mlflow-oidc:v0.3.1` is still pullable from the registry (do not delete or overwrite).
-- [ ] Note the current deployment manifest revision (`kubectl rollout history`).
-- **Status:** pending
+- [x] `pg_dump` the `mlflow` tracking DB. File: `backups/mlflow-tracking-20260526T010019Z.sql` (855K, complete marker present, 44 COPY blocks).
+- [x] `pg_dump` the `mlflow_auth` plugin DB. File: `backups/mlflow-auth-20260526T010049Z.sql` (61K, complete marker present, 28 COPY blocks).
+- [x] Old image `cdjs/mlflow-oidc:v0.3.1` confirmed still on Docker Hub via `docker manifest inspect`. Running pod is pinned to digest `sha256:abbe2311317964530bc3221d795abe677ff356c0052ffd7b3ebeb7f4dd3f2f93`.
+- [x] Current deployment revision: **8**. Image: `cdjs/mlflow-oidc:v0.3.1`. Rollback path: `kubectl rollout undo deploy/mlflow -n mlflow` (to previous revision) or set image back to `cdjs/mlflow-oidc:v0.3.1` explicitly.
+- **Status:** complete
 
 ### Phase 3: Build and publish new image via CI
-- [ ] Review `.github/workflows/build_container.yml`. Confirm the workflow triggers (currently `push` + `workflow_dispatch`), the build context (`docker/`), the registry (`ghcr.io/${{ github.repository }}` = `ghcr.io/drai-inn/ai-gpu-mlflow`), and the default `docker/metadata-action` tagging strategy (branch, PR, semver from `v*` git tags, SHA).
-- [ ] In `docker/Dockerfile`, bump `MLFLOW_VERSION=3.12.0` and `MLFLOW_OIDC_VERSION=7.3.1`. Commit on a branch and push.
-- [ ] Watch the CI run: confirm the image builds, tests pass (if any), and the image lands at `ghcr.io/drai-inn/ai-gpu-mlflow:<branch>` and `:sha-<short>`.
-- [ ] Merge to `main` so a `main`-tagged image is produced.
-- [ ] Create and push a `v0.4.0` git tag on the merged commit. Confirm CI produces `ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0` (and likely `:0.4.0` and `:0.4` from default semver behaviour).
-- [ ] Make the GHCR package public (Settings → Packages → ai-gpu-mlflow → Change visibility to Public) OR create an `imagePullSecret` for the `mlflow` namespace if the package must stay private. Confirmed pullable from the cluster.
-- [ ] Smoke-test the image locally: `docker run --rm ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0 mlflow server --help` to confirm CLI works and dependencies installed cleanly.
-- **Status:** pending
+- [x] Reviewed `.github/workflows/build_container.yml`. Triggers: `push` + `workflow_dispatch`. Build context: `docker/`. Registry: `ghcr.io/drai-inn/ai-gpu-mlflow`. `docker/metadata-action@v6` defaults: produces `:<branch>`, `:<tag>`, and `:latest` for a semver tag. Does NOT produce `:sha-<short>` (would need `type=sha`) nor `:0.4.0`/`:0.4` short forms (would need `type=semver,pattern={{version}}`).
+- [x] In `docker/Dockerfile`, bumped `MLFLOW_VERSION=3.12.0` and `MLFLOW_OIDC_VERSION=7.3.1`. Branch `upgrade-mlflow-3.12.0`, commit `07fe896`.
+- [x] CI run 26426658814 succeeded in 1m44s. Image: `ghcr.io/drai-inn/ai-gpu-mlflow:upgrade-mlflow-3.12.0@sha256:84f0e405004dca08602040f59f11e998602412f34a756b9957061531e471fd56`.
+- [x] Fast-forwarded `main` to `07fe896` and pushed. CI run 26426817335 succeeded in 2m1s. Produced `:main`.
+- [x] Tagged `v0.4.0` (annotated) on `07fe896` and pushed. CI run 26427038739 succeeded in 1m53s. Produced `:v0.4.0` and `:latest`, both → digest `sha256:1c2e5a0a68213faf07f142f454b5bc189f3c1b55acd1c72041b63f3e8af22a5b`.
+- [x] GHCR package `ai-gpu-mlflow` already public. Anonymous `docker pull ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0` succeeded; digest matches CI push.
+- [x] Smoke test: `docker run --rm ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0 mlflow server --help` returned normal help text. `importlib.metadata` reports `mlflow==3.12.0` and `mlflow-oidc-auth==7.3.1` inside the image. Note: `mlflow_oidc_auth.__version__` attribute still reads `7.0.0.dev0` (upstream `__init__.py` never updated); install metadata is what matters.
+- **Status:** complete
 
 ### Phase 4: Staging dry-run (SKIPPED by decision)
 - Skipped per Phase 1 decision. Rollback path is the DB snapshots taken in Phase 2 + reverting the deployment image tag to `cdjs/mlflow-oidc:v0.3.1`.
