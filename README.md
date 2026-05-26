@@ -24,6 +24,6 @@ kubectl apply -f mlflow-certificate.yaml
 kubectl apply -f mlflow-ingress.yaml
 ```
 
-## TODO
+## Container image
 
-- build image automatically and push to registry
+Built by `.github/workflows/build_container.yml` and published to `ghcr.io/drai-inn/ai-gpu-mlflow`. Pushing a `v*` git tag produces a versioned image tag plus `:latest`; pushes to `main` produce a `:main` floating tag.
