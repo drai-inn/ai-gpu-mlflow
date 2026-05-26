@@ -1,2 +1,3 @@
 mlflow-secret.yaml
 mlflow-postgres-secret.yaml
+.planning/.active_plan
