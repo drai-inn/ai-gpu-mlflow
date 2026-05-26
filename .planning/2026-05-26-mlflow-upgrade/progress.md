@@ -55,6 +55,37 @@
 - Smoke test: `mlflow server --help` works. `importlib.metadata` shows `mlflow==3.12.0` and `mlflow-oidc-auth==7.3.1`. `mlflow_oidc_auth.__version__` reads `7.0.0.dev0` due to an upstream cosmetic bug; the wheel install version is the source of truth.
 - Phase 3 marked complete. Current Phase advanced to 5 (Phase 4 was already skipped).
 
+### Update 2026-05-26 (Phase 5 execution and completion)
+- Edited `mlflow-deployment.yaml`: bumped `image:` to `ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0` and added env vars `OIDC_USE_REFRESH_TOKEN=true`, `OIDC_SESSION_EXPIRY_LEEWAY_SECONDS=30`, `EXTEND_MLFLOW_REAUTH=true`.
+- First `kubectl apply`: rolled out, then pod entered crashloop (4 restarts in <4 min). Log tail showed only the harmless `authlib.jose` deprecation warning, no traceback. `containerStatuses[0].lastState` revealed `OOMKilled` with exit code 137.
+- Root cause: v0.4.0 steady-state resident set is ~2148 MiB (per `kubectl top pod`), exceeds the existing 2Gi limit. Old v0.3.1 had been running at the same limit with 7 restarts over 14d, already brushing the ceiling.
+- Edited the manifest again to bump `limits.memory` from 2Gi to 4Gi (node has ~200GB allocatable, plenty of headroom). Re-applied.
+- Second rollout clean. Pod `mlflow-7f8c98458-gvzjf` Running 1/1, 0 restarts after a 120s stability watch.
+- Verified migrations via direct psql into the postgres pod:
+  - `mlflow.alembic_version` = `7d34483879f0`; new objects (`issues`, `guardrails`, `guardrail_configs`, `budget_policies`, `jobs.status_details`, `index_metrics_run_uuid_key_step`) all present.
+  - `mlflow_auth.alembic_version` = `8a9b0c1de234`; all four workspace tables present.
+- Verified ingress: `curl https://mlflow.test.drai.auckland.ac.nz/` → HTTP 401 (expected OIDC challenge, not 5xx).
+- Current Phase advanced to 6.
+
+### Update 2026-05-26 (Phase 6 + Phase 7 close-out)
+- Deployment manifest committed in `e357b84`: image tag `ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0`, env vars `OIDC_USE_REFRESH_TOKEN=true` / `OIDC_SESSION_EXPIRY_LEEWAY_SECONDS=30` / `EXTEND_MLFLOW_REAUTH=true`, memory limit 2Gi→4Gi. Dockerfile pin bumps already shipped in `07fe896` (Phase 3).
+- Phase 6 verification driven by user in the browser: admin + non-admin login, experiment list, run view, write paths, S3 artifact resolution, and the 5-min re-auth flow all confirmed working. Silent refresh held; no fallback redirect observed.
+- README has no version pins; left as-is. Stale TODO line ("build image automatically and push to registry") is now superseded by the GHCR CI workflow but left untouched (out of scope).
+- Local commits ahead of `origin/main`: `7ada11d` (.gitignore for backups/), `5090897` (Phase 2/3 progress), `e357b84` (deployment manifest). Push at the user's discretion.
+
+### Final outcome
+- Production runs on `ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0` (`mlflow==3.12.0`, `mlflow-oidc-auth==7.3.1`).
+- Both alembic heads applied: tracking DB → `7d34483879f0`, plugin DB → `8a9b0c1de234`.
+- Memory limit raised to 4Gi; no further OOMKills observed.
+- DB snapshots retained under `backups/` as rollback anchor (`.gitignore`d).
+- Previous image `cdjs/mlflow-oidc:v0.3.1` still resolvable on Docker Hub for image-tag revert.
+
+### Follow-ups (not in scope of this plan)
+- Duplicate-group autoflush bug for users whose IdP claim contains repeated group leaf names. Still unfixed in 7.3.1. Tracked separately in drai-inn/ai-gpu-mlflow#1.
+- README TODO line is now obsolete; consider a small cleanup PR.
+- Optionally tighten `.github/workflows/build_container.yml` triggers to `tags: ['v*'] + pull_request` if per-commit build noise becomes a problem.
+- Workspace feature in `mlflow-oidc-auth` 7.x is dormant; revisit if multi-tenant boundaries are needed.
+
 ### Update 2026-05-26 (Phase 1 close-out)
 User decisions recorded:
 - Keycloak access-token lifespan = 5 min. Decision: enable `OIDC_USE_REFRESH_TOKEN=true` in deployment (added to Phase 5 checklist).

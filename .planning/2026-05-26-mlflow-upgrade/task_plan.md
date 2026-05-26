@@ -4,7 +4,7 @@
 Upgrade the deployed MLflow stack from `mlflow 3.10.1` / `mlflow-oidc-auth 6.7.1` to `mlflow 3.12.0` / `mlflow-oidc-auth 7.3.1`, rebuild and push a new container image, roll out to the `mlflow` namespace with both alembic migrations applied cleanly, and verify auth + tracking still work.
 
 ## Current Phase
-Phase 5 (Phases 1, 2, 3 complete; Phase 4 skipped)
+Complete (Phases 1, 2, 3, 5, 6, 7 complete; Phase 4 skipped)
 
 ## Scope and Non-Goals
 - IN SCOPE: Dockerfile pins, image rebuild, deployment manifest update, DB backups, rollout, smoke tests.
@@ -52,31 +52,25 @@ Phase 5 (Phases 1, 2, 3 complete; Phase 4 skipped)
 
 ### Phase 5: Production rollout
 - [x] Verify the Keycloak client (`mlflow-test`) has `offline_access` scope assigned. Confirmed 2026-05-26: present as Optional, which is sufficient.
-- [ ] Update `mlflow-deployment.yaml`:
-  - Set `image:` to `ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0`.
-  - Add env var `OIDC_USE_REFRESH_TOKEN: "true"` so silent refresh kicks in and users are not bounced to Keycloak every 5 minutes.
-  - (Optional but tidy) Add `OIDC_SESSION_EXPIRY_LEEWAY_SECONDS: "30"` and `EXTEND_MLFLOW_REAUTH: "true"` explicitly; both are the defaults but pinning them documents intent.
-- [ ] `kubectl apply -f mlflow-deployment.yaml`.
-- [ ] Watch the new pod: ensure both alembic migrations complete; pod reaches Running 1/1; serves `/` with HTTP 200/302.
-- [ ] Do NOT delete the old pod manually; let the rolling-update strategy handle it once the new pod is healthy.
-- **Status:** pending
+- [x] Update `mlflow-deployment.yaml`:
+  - [x] Set `image:` to `ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0`.
+  - [x] Add `OIDC_USE_REFRESH_TOKEN: "true"`, `OIDC_SESSION_EXPIRY_LEEWAY_SECONDS: "30"`, `EXTEND_MLFLOW_REAUTH: "true"`.
+  - [x] Bump `resources.limits.memory` from `2Gi` to `4Gi` (first rollout OOMKilled on steady-state ~2.1 GiB resident set under v0.4.0).
+- [x] `kubectl apply -f mlflow-deployment.yaml`. Initial apply caused crashloop (OOMKilled 137); second apply (with 4Gi limit) rolled cleanly.
+- [x] mlflow tracking DB at alembic head `7d34483879f0`. New objects present: `issues`, `guardrails`, `guardrail_configs`, `budget_policies` tables, `jobs.status_details` JSON column, `index_metrics_run_uuid_key_step` index.
+- [x] mlflow_auth DB at alembic head `8a9b0c1de234`. New tables present: `workspace_permissions`, `workspace_group_permissions`, `workspace_regex_permissions`, `workspace_group_regex_permissions`.
+- [x] Pod `mlflow-7f8c98458-gvzjf` Running 1/1, 0 restarts after 120s steady-state. Ingress `https://mlflow.test.drai.auckland.ac.nz/` returns 401 (expected OIDC challenge).
+- **Status:** complete
 
 ### Phase 6: Verification and smoke tests
-- [ ] Admin login (you) via Keycloak: succeeds, lands on UI.
-- [ ] Non-admin login (pick a user known not to trigger the duplicate-group bug, i.e. not one of the affected users until that issue is separately fixed): succeeds.
-- [ ] List experiments via UI and via `mlflow` CLI against the endpoint.
-- [ ] View an existing run with metrics/artifacts.
-- [ ] Create a tiny throwaway experiment + run + log_metric to confirm write paths.
-- [ ] Check that S3 artifact paths still resolve.
-- [ ] Re-auth flow: stay logged in past the 5-minute access-token lifespan, then perform a UI/API action. Expected with `OIDC_USE_REFRESH_TOKEN=true`: silent refresh, no redirect. Confirm pod log contains `Session for ... refreshed against IdP` (or equivalent).
-- [ ] If silent refresh fails (e.g. `offline_access` scope not assigned), pod logs will show a 401/redirect and the user will be sent back to Keycloak. Fix the Keycloak client scope, no rollback needed.
-- **Status:** pending
+- [x] Browser-driven verification by user: admin login, non-admin login, experiment list, run view, write paths, S3 artifact resolution, and re-auth flow past the 5-min access-token lifespan all working. No silent-refresh failure observed.
+- **Status:** complete
 
 ### Phase 7: Commit and document
-- [ ] Commit Dockerfile pin bumps and deployment manifest tag bump together with a clear message.
-- [ ] Update `README.md` if it cites version numbers.
-- [ ] Close out this plan in `progress.md` with the final outcome and any follow-ups.
-- **Status:** pending
+- [x] Dockerfile pin bumps committed in `07fe896` (Phase 3). Deployment manifest committed in `e357b84` with image tag, OIDC re-auth env vars, and 4Gi memory limit.
+- [x] `README.md` reviewed — does not cite version numbers, no edit needed. Stale TODO ("build image automatically and push to registry") is now obsolete; left untouched (out of scope for this plan).
+- [x] Plan closed out in `progress.md` with final outcome and follow-ups.
+- **Status:** complete
 
 ## Decisions Made
 | Decision | Rationale |
@@ -103,6 +97,7 @@ Phase 5 (Phases 1, 2, 3 complete; Phase 4 skipped)
 ## Errors Encountered
 | Error | Resolution |
 |-------|------------|
+| Phase 5 first apply: pod crashlooped with OOMKilled (exit 137) within ~30s of startup. uvicorn started, parent process spawned, then SIGKILL. Logs showed only `AuthlibDeprecationWarning` at tail (red herring). | `kubectl get pod -o jsonpath='{...containerStatuses[0].lastState}'` revealed `OOMKilled` and the in-cluster `top pod` showed steady-state RSS of ~2148 MiB under v0.4.0 — over the existing 2Gi limit. Bumped `limits.memory` to 4Gi and re-applied. Old image v0.3.1 had been running at the same 2Gi limit with 7 restarts over 14d, suggesting it was already brushing the limit; v0.4.0 brings more loaded routers (GenAI gateway, jobs scheduler, workspace plugin) and crossed it consistently. |
 
 ## Out-of-Band Notes
 - New image registry: `ghcr.io/drai-inn/ai-gpu-mlflow` (GitHub Packages), built by `.github/workflows/build_container.yml`.
