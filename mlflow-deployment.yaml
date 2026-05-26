@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: mlflow
-          image: cdjs/mlflow-oidc:v0.3.1
+          image: ghcr.io/drai-inn/ai-gpu-mlflow:v0.4.0
           imagePullPolicy: Always
           command: ["/bin/bash", "-c"]
           args:
@@ -50,6 +50,12 @@ spec:
               value: https://mlflow.test.drai.auckland.ac.nz/callback
             - name: OIDC_SCOPE
               value: openid email profile
+            - name: OIDC_USE_REFRESH_TOKEN
+              value: "true"
+            - name: OIDC_SESSION_EXPIRY_LEEWAY_SECONDS
+              value: "30"
+            - name: EXTEND_MLFLOW_REAUTH
+              value: "true"
             - name: LOG_LEVEL
               value: INFO
             - name: DEFAULT_MLFLOW_PERMISSION
@@ -108,7 +114,7 @@ spec:
               memory: "1Gi"
             limits:
               cpu: "2"
-              memory: "2Gi"
+              memory: "4Gi"
 
 ---
 # -----------------------------
