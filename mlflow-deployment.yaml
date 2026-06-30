@@ -109,10 +109,32 @@ spec:
                 secretKeyRef:
                   name: mlflow-secret
                   key: MLFLOW_OIDC_SECRET_KEY
+            # NOTE: setting MLFLOW_SERVER_ALLOWED_HOSTS REPLACES MLflow's built-in
+            # loopback/private defaults (it is not additive). A public-host-only value
+            # silently breaks MLflow's in-process job subsystem (e.g. GenAI "Detect
+            # Issues" / built-in scorers), whose workers self-call the server over
+            # loopback -> 403 "Invalid Host header (DNS rebinding)". Keep the public
+            # host AND restore the loopback + RFC1918/ULA private patterns.
             - name: MLFLOW_SERVER_ALLOWED_HOSTS
-              value: mlflow.test.drai.auckland.ac.nz
+              value: mlflow.test.drai.auckland.ac.nz,localhost,127.0.0.1,[::1],0.0.0.0,localhost:*,127.0.0.1:*,0.0.0.0:*,10.*,172.*,192.168.*,fc00:*,fd00:*
             - name: MLFLOW_SERVER_CORS_ALLOWED_ORIGINS
               value: https://mlflow.test.drai.auckland.ac.nz
+            # Required for the in-process job workers (Detect Issues / built-in judges)
+            # to authenticate their gateway self-calls back through the OIDC layer.
+            # MLflow builds a Basic-auth header from these via read_mlflow_creds().
+            # ACTION: create a DEDICATED service-account credential (NOT a personal
+            # token) and store it in the mlflow-secret (or a new secret). Without these,
+            # Detect Issues fails with {"detail":"Authentication required"}.
+            - name: MLFLOW_TRACKING_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secret
+                  key: MLFLOW_TRACKING_USERNAME
+            - name: MLFLOW_TRACKING_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mlflow-secret
+                  key: MLFLOW_TRACKING_PASSWORD
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
