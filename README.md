@@ -1,28 +1,18 @@
 # MLflow
 
-Create the namespace first:
+The MLflow tracking server image (MLflow with the `mlflow-oidc-auth` plugin) and helper scripts.
 
-```
-kubectl apply -f mlflow-namespace.yaml
-```
+## Deployment
 
-Install postgres - go to postgres sub directory and follow instructions there.
+The live deployment on ai-gpu-test is managed by ArgoCD (manual sync) from
+[`drai-inn/ai-gpu-deployment`](https://github.com/drai-inn/ai-gpu-deployment), branch `argocd-gitops`:
 
-Create the secret:
+- MLflow server: `clusters/ai-gpu-test/mlflow/manifests/`
+- Postgres: `clusters/ai-gpu-test/mlflow-postgres/values.yaml`
 
-```
-cp mlflow-secret.yaml.example mlflow-secret.yaml
-# edit mlflow-secret.yaml
-kubectl apply -f mlflow-secret.yaml
-```
-
-Create the deployment and ingress:
-
-```
-kubectl apply -f mlflow-deployment.yaml
-kubectl apply -f mlflow-certificate.yaml
-kubectl apply -f mlflow-ingress.yaml
-```
+Change the image, env or resources there, not in this repo. The Secrets `mlflow-secret`, `mlflow-postgres-secret`
+and `mlflow-gateway-auth` in namespace `mlflow` are created out of band; the keys each one needs are the
+`secretKeyRef`s in `deployment.yaml` and the chart's `auth.existingSecret` mapping.
 
 ## Keycloak group claim
 

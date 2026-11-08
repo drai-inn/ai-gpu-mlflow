@@ -13,8 +13,8 @@ RUN groupadd --gid 1000 mlgroup \
 
 WORKDIR /mlflow
 
-ARG MLFLOW_VERSION=3.12.0
-ARG MLFLOW_OIDC_VERSION=7.3.1
+ARG MLFLOW_VERSION=3.18.0
+ARG MLFLOW_OIDC_VERSION=11.0.5
 
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install \
